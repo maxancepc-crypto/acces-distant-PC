@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accès à distance</title>
+<style>body{margin:0;font-family:Segoe UI,system-ui,sans-serif;background:#1f1f1f;color:#fff}
+#top{display:flex;gap:8px;align-items:center;padding:8px 12px;background:#2b2b2b;flex-wrap:wrap}
+input,button{padding:8px 10px;border-radius:6px;border:1px solid #555;background:#3a3a3a;color:#fff}
+button{background:#0067c0;border-color:#0067c0;cursor:pointer}#st{margin-left:auto;font-size:13px;opacity:.8}
+#v{display:block;max-width:100%;max-height:calc(100vh - 56px);margin:0 auto;background:#000;outline:0}</style></head><body>
+<div id="top"><b>🖥️ Accès à distance</b><input id="c" placeholder="Code" size="10"><input id="p" placeholder="Mot de passe" size="9">
+<button id="go">Se connecter</button><label><input type="checkbox" id="ctl"> Prendre le contrôle</label><span id="st">Déconnecté</span></div>
+<canvas id="v" tabindex="0" width="1280" height="720"></canvas>
+<script>
+const $=s=>document.querySelector(s),cv=$("#v"),cx=cv.getContext("2d");let ws,last=0;
+const st=t=>$("#st").textContent=t;
+$("#go").onclick=()=>{if(ws)ws.close();ws=new WebSocket((location.protocol=="https:"?"wss://":"ws://")+location.host+"/ws");ws.binaryType="blob";
+ ws.onopen=()=>ws.send(JSON.stringify({t:"viewer",code:$("#c").value.trim(),pw:$("#p").value.trim()}));
+ ws.onmessage=async e=>{if(typeof e.data=="string"){const d=JSON.parse(e.data);st(d.t=="err"?d.m:"Connecté");return}
+  const b=await createImageBitmap(e.data);cv.width=b.width;cv.height=b.height;cx.drawImage(b,0,0)};
+ ws.onclose=()=>st("Déconnecté")};
+const send=o=>{if($("#ctl").checked&&ws&&ws.readyState==1)ws.send(JSON.stringify(o))};
+const pos=e=>{const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height}};
+const B=["left","middle","right"];
+cv.onmousemove=e=>{const n=Date.now();if(n-last>50){last=n;send({t:"move",...pos(e)})}};
+cv.onmousedown=e=>{cv.focus();send({t:"down",b:B[e.button],...pos(e)})};
+cv.onmouseup=e=>send({t:"up",b:B[e.button],...pos(e)});
+cv.oncontextmenu=e=>e.preventDefault();
+cv.onwheel=e=>{e.preventDefault();send({t:"scroll",d:e.deltaY/4})};
+cv.onkeydown=e=>{e.preventDefault();send({t:"key",k:e.key,ctrl:e.ctrlKey,alt:e.altKey})};
+</script></body></html>
